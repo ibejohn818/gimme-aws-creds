@@ -206,9 +206,17 @@ class GimmeAWSCreds(object):
         # Use the first available region for partitions other than the public AWS
         if partition != 'aws':
             regions = boto3.session.Session().get_available_regions('sts', partition)
-            client = boto3.client('sts', regions[0])
+            # client = boto3.client('sts', regions[0])
+            region = 'me-south-1'
+            print("USING REGION: ")
+            print(region)
+            client = boto3.client('sts', region_name=region)
         else:
-            client = boto3.client('sts')
+            region = 'me-south-1'
+            print("USING REGION: (ELSE)")
+            print(region)
+            # client = boto3.client('sts')
+            client = boto3.client('sts', region_name=region)
 
         response = client.assume_role_with_saml(
             RoleArn=role,
