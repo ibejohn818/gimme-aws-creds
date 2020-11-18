@@ -12,6 +12,7 @@ See the License for the specific language governing permissions and* limitations
 """
 # For enumerating saml roles
 # standard imports
+import subprocess
 import configparser
 import json
 import os
@@ -287,6 +288,8 @@ class GimmeAWSCreds(object):
             raise errors.GimmeAWSCredsError("No AWS accounts found.")
 
         return app_list
+
+
 
     @staticmethod
     def _parse_role_arn(arn):
@@ -804,14 +807,44 @@ class GimmeAWSCreds(object):
                 self.ui.result(json.dumps(data))
                 continue
 
+            print("DATA: ", data)
             # Defaults to `export` format
-            self.ui.result("export AWS_ROLE_ARN=" + data['role']['arn'])
-            self.ui.result("export AWS_ACCESS_KEY_ID=" + data['credentials']['aws_access_key_id'])
-            self.ui.result("export AWS_SECRET_ACCESS_KEY=" + data['credentials']['aws_secret_access_key'])
-            self.ui.result("export AWS_SESSION_TOKEN=" + data['credentials']['aws_session_token'])
-            self.ui.result("export AWS_SECURITY_TOKEN=" + data['credentials']['aws_security_token'])
+            # self.ui.result("export AWS_ROLE_ARN=" + data['role']['arn'])
+            # self.ui.result("export AWS_ACCESS_KEY_ID=" + data['credentials']['aws_access_key_id'])
+            # self.ui.result("export AWS_SECRET_ACCESS_KEY=" + data['credentials']['aws_secret_access_key'])
+            # self.ui.result("export AWS_SESSION_TOKEN=" + data['credentials']['aws_session_token'])
+            # self.ui.result("export AWS_SECURITY_TOKEN=" + data['credentials']['aws_security_token'])
+            env = {
+                "AWS_ROLE_ARN": data['role']['arn'],
+                "AWS_ACCESS_KEY_ID": data['credentials']['aws_access_key_id'],
+                "AWS_SECRET_ACCESS_KEY": data['credentials']['aws_secret_access_key'],
+                "AWS_SESSION_TOKEN": data['credentials']['aws_session_token'],
+                "AWS_SECURITY_TOKEN": data['credentials']['aws_security_token'],
+            }
 
-        self.config.clean_up()
+            pname = data.get("profile", {}).get("name", None)
+            if not pname == None:
+                env["AWSH_INFO"] = pname
+            
+            self.config.clean_up()
+            self._create_shell(env=env)
+
+    def _create_shell(self, **kw):
+        """ create new shell with env """
+        # copy current ENV
+        new_env = {}
+        for k, v in os.environ.items():
+            if k.startswith("AWS_"):
+                continue
+            new_env[k] = v
+        # add keyword env
+        env_in: dict = kw.get("env", {})
+        for k, v in env_in.items():
+            new_env[k] = v
+
+        # get current shell
+        new_shell = new_env.get("SHELL", "/bin/bash")
+        return subprocess.call(new_shell, env=new_env, shell=True)
 
     def handle_action_configure(self):
         # Create/Update config when configure arg set
